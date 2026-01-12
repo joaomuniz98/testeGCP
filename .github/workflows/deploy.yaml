@@ -1,0 +1,40 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Autenticar no Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configurar Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: frontend-cicd-2026
+
+      - name: Configurar Docker para GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build da imagem
+        run: docker build -t gcr.io/frontend-cicd-2026/meu-frontend:${{ github.sha }} .
+
+      - name: Push da imagem
+        run: docker push gcr.io/frontend-cicd-2026/meu-frontend:${{ github.sha }}
+
+      - name: Deploy no Cloud Run
+        run: |
+          gcloud run deploy meu-frontend \
+            --image gcr.io/frontend-cicd-2026/meu-frontend:${{ github.sha }} \
+            --region southamerica-east1 \
+            --allow-unauthenticated
